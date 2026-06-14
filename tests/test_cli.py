@@ -68,73 +68,74 @@ class TestPathHelpers:
 class TestMultiSelection:
     """Test cases for multi-selection functionality."""
 
-    @patch('anime_downloader.cli.commands.FzfPrompt')
-    def test_choose_anime_single_selection(self, mock_fzf_class):
+    @patch('anime_downloader.cli.commands._questionary_select')
+    def test_choose_anime_single_selection(self, mock_select):
         """Test single anime selection (with --single flag)."""
         mock_api = Mock()
+        anime1 = {"title": "Anime 1", "session": "anime-1"}
         mock_api.search.return_value = [
-            {"title": "Anime 1", "session": "anime-1"},
+            anime1,
             {"title": "Anime 2", "session": "anime-2"},
         ]
-        
-        mock_fzf = Mock()
-        mock_fzf.prompt.return_value = ["Anime 1"]
-        mock_fzf_class.return_value = mock_fzf
-        
+
+        # Single-select returns a single value (the chosen result dict).
+        mock_select.return_value = anime1
+
         result = choose_anime(mock_api, "test", multi=False)
-        
+
         assert result is not None
         assert len(result) == 1
         assert result[0]["title"] == "Anime 1"
         assert result[0]["session"] == "anime-1"
+        # Single mode should request a non-multi prompt.
+        assert mock_select.call_args[0][2] is False
 
-    @patch('anime_downloader.cli.commands.FzfPrompt')
-    def test_choose_anime_multi_selection(self, mock_fzf_class):
+    @patch('anime_downloader.cli.commands._questionary_select')
+    def test_choose_anime_multi_selection(self, mock_select):
         """Test multiple anime selection (default behavior)."""
         mock_api = Mock()
+        anime1 = {"title": "Anime 1", "session": "anime-1"}
+        anime3 = {"title": "Anime 3", "session": "anime-3"}
         mock_api.search.return_value = [
-            {"title": "Anime 1", "session": "anime-1"},
+            anime1,
             {"title": "Anime 2", "session": "anime-2"},
-            {"title": "Anime 3", "session": "anime-3"},
+            anime3,
         ]
-        
-        mock_fzf = Mock()
-        mock_fzf.prompt.return_value = ["Anime 1", "Anime 3"]
-        mock_fzf_class.return_value = mock_fzf
-        
+
+        # Multi-select returns a list of chosen result dicts.
+        mock_select.return_value = [anime1, anime3]
+
         result = choose_anime(mock_api, "test", multi=True)
-        
+
         assert result is not None
         assert len(result) == 2
         assert result[0]["title"] == "Anime 1"
         assert result[1]["title"] == "Anime 3"
-        # Verify --multi flag was passed to fzf
-        mock_fzf.prompt.assert_called_once()
-        call_args = mock_fzf.prompt.call_args
-        assert "--multi" in call_args[0][1]
+        # Multi mode should request a multi-select prompt.
+        mock_select.assert_called_once()
+        assert mock_select.call_args[0][2] is True
 
-    @patch('anime_downloader.cli.commands.FzfPrompt')
-    def test_choose_anime_no_results(self, mock_fzf_class):
+    @patch('anime_downloader.cli.commands._questionary_select')
+    def test_choose_anime_no_results(self, mock_select):
         """Test behavior when no anime are found."""
         mock_api = Mock()
         mock_api.search.return_value = []
-        
-        result = choose_anime(mock_api, "nonexistent", multi=True)
-        
-        assert result is None
 
-    @patch('anime_downloader.cli.commands.FzfPrompt')
-    def test_choose_anime_no_selection(self, mock_fzf_class):
+        result = choose_anime(mock_api, "nonexistent", multi=True)
+
+        assert result is None
+        mock_select.assert_not_called()
+
+    @patch('anime_downloader.cli.commands._questionary_select')
+    def test_choose_anime_no_selection(self, mock_select):
         """Test behavior when user cancels selection."""
         mock_api = Mock()
         mock_api.search.return_value = [
             {"title": "Anime 1", "session": "anime-1"},
         ]
-        
-        mock_fzf = Mock()
-        mock_fzf.prompt.return_value = []
-        mock_fzf_class.return_value = mock_fzf
-        
+
+        mock_select.return_value = None
+
         result = choose_anime(mock_api, "test", multi=True)
-        
+
         assert result is None

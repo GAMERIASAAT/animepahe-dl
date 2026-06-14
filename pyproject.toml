@@ -32,7 +32,6 @@ classifiers = [
 # desktop notifications (plyer) are optional extras — see below.
 dependencies = [
     "beautifulsoup4>=4.14.3",
-    "pyfzf>=0.3.0",
     "pycryptodome>=3.19.0",
     "tqdm>=4.66.0",
     "urllib3>=2.0.0,<2.5.0; python_version < '3.9'",

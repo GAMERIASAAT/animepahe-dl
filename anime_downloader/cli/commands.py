@@ -17,7 +17,6 @@ import time
 import signal
 from typing import Any, Dict, List, Optional, Set
 from tqdm import tqdm
-from pyfzf.pyfzf import FzfPrompt
 import questionary
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -76,13 +75,15 @@ def get_video_path(anime_name: str, episode_number: int, download_dir: str) -> s
 
 def check_dependencies():
     """
-    Checks if required command-line tools (ffmpeg, fzf, node) are installed.
+    Checks if required command-line tools (ffmpeg, node) are installed.
 
-    Exits the application if a dependency is not found, printing an install
-    hint appropriate for the current platform (Termux-aware).
+    Anime selection is handled in pure Python (questionary), so no external
+    fuzzy-finder is required. Exits the application if a dependency is not
+    found, printing an install hint appropriate for the current platform
+    (Termux-aware).
     """
     # Map each required executable to the package that provides it on Termux.
-    required = {"ffmpeg": "ffmpeg", "fzf": "fzf", "node": "nodejs"}
+    required = {"ffmpeg": "ffmpeg", "node": "nodejs"}
     termux = helper.is_termux()
 
     missing = [tool for tool in required if shutil.which(tool) is None]
@@ -98,7 +99,7 @@ def check_dependencies():
     else:
         logger.info(
             "Install the missing dependencies with your package manager "
-            "(e.g. 'sudo apt install ffmpeg fzf nodejs' on Debian/Ubuntu)."
+            "(e.g. 'sudo apt install ffmpeg nodejs' on Debian/Ubuntu)."
         )
     sys.exit(1)
 
@@ -225,22 +226,60 @@ def play_episode_stream(
         return False
 
 
+def _questionary_select(message: str, choices: List[Any], multi: bool):
+    """
+    Presents a selection prompt using questionary (a pure-Python alternative to
+    fzf), enabling type-to-filter when the installed questionary version
+    supports it.
+
+    Args:
+        message: The prompt message to display.
+        choices: A list of ``questionary.Choice`` (or string) options.
+        multi: If True, use a multi-select checkbox; otherwise a single select.
+
+    Returns:
+        The selected value (single mode) or list of values (multi mode), or None
+        if the user aborted the prompt.
+    """
+    prompt_fn = questionary.checkbox if multi else questionary.select
+    # ``use_search_filter``/``use_jk_keys`` were added in questionary 2.x and give
+    # an fzf-like "type to filter" experience. Fall back gracefully if missing.
+    try:
+        return prompt_fn(
+            message, choices=choices, use_search_filter=True, use_jk_keys=False
+        ).ask()
+    except TypeError:
+        return prompt_fn(message, choices=choices).ask()
+
+
 def choose_anime(
     api: AnimePaheAPI, query: str, last_cache_count: Optional[int] = None, multi: bool = False
 ) -> Optional[List[Dict[str, str]]]:
     """
-    Prompts the user to select one or more anime from a list of search results using fzf.
+    Prompts the user to search for and select one or more anime, entirely in the
+    terminal (no external fzf binary required).
 
     Args:
         api: An instance of the AnimePaheAPI.
-        query: The user's search query.
+        query: The user's search query. If empty, the user is prompted for one
+            (leaving it blank browses the full cached list with type-to-filter).
         last_cache_count: The count from the last cache update (for error messages).
-        multi: If True, allows multiple selections using spacebar.
+        multi: If True, allows selecting multiple anime.
 
     Returns:
         A list of dictionaries, each containing 'title' and 'session' (slug),
         or None if no anime is selected.
     """
+    # When no query was supplied (interactive entry point), ask for one so we
+    # don't dump the entire anime list into the selector at once.
+    if not query:
+        query = questionary.text(
+            "Search for an anime (leave blank to browse all):"
+        ).ask()
+        if query is None:  # User aborted with Ctrl+C / ESC
+            return None
+        query = query.strip()
+
     results = api.search(query)
     if not results:
         if not query:
@@ -263,24 +302,19 @@ def choose_anime(
             logger.warning("No anime found for your query.")
         return None
 
-    fzf = FzfPrompt()
-    # Format for fzf: "Title"
-    # We store slug and title in a dict for easy retrieval
-    titles = [r["title"] for r in results]
+    # Build choices whose value is the full result dict for easy retrieval.
+    choices = [questionary.Choice(title=r["title"], value=r) for r in results]
+    message = (
+        "Select anime (type to filter, Space to toggle, Enter to confirm):"
+        if multi
+        else "Select an anime (type to filter):"
+    )
 
-    # Use --multi flag if multi-selection is enabled
-    fzf_options = "--multi --bind space:toggle" if multi else ""
-    selection = fzf.prompt(titles, fzf_options) if fzf_options else fzf.prompt(titles)
+    selection = _questionary_select(message, choices, multi)
 
-    if selection:
-        selected_anime = []
-        for selected_title in selection:
-            for r in results:
-                if r["title"] == selected_title:
-                    selected_anime.append(r)
-                    break
-        return selected_anime if selected_anime else None
-    return None
+    if not selection:
+        return None
+    return selection if multi else [selection]
 
 
 def parse_episode_selection(selection_str: str, max_episode: int) -> List[int]:
@@ -522,15 +556,22 @@ def run_update_check(
 
 def manage_my_list():
     """
-    Allows the user to add or remove anime from their personal list using fzf.
+    Allows the user to remove anime from their personal list, entirely in the
+    terminal (no external fzf binary required).
     """
     try:
         with open(constants.MY_ANIME_LIST_FILE, "r+", encoding="utf-8") as f:
-            current_list = [line.strip() for line in f]
-            fzf = FzfPrompt()
-            # Use fzf to select items to remove
-            to_remove = fzf.prompt(
-                current_list, "--multi --prompt 'Select anime to REMOVE > '"
+            current_list = [line.strip() for line in f if line.strip()]
+
+            if not current_list:
+                logger.warning("Your anime list is empty. Nothing to manage.")
+                return
+
+            # Use questionary checkbox to select items to remove.
+            to_remove = _questionary_select(
+                "Select anime to REMOVE (type to filter, Space to toggle, Enter to confirm):",
+                current_list,
+                multi=True,
             )
 
             if to_remove:
@@ -740,7 +781,7 @@ def main():
         return
 
     # Ensure all external dependencies are met before doing any real work.
-    # (Config-only commands above don't need ffmpeg/fzf/node, so they run first.)
+    # (Config-only commands above don't need ffmpeg/node, so they run first.)
     check_dependencies()
 
     # Force insecure SSL always

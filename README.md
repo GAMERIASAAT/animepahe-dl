@@ -79,10 +79,6 @@ Before installing, ensure you have the following dependencies on your system:
     *   **Windows**: Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add to your system's PATH.
     *   **macOS**: Install via your package manager or download from [ffmpeg.org](https://ffmpeg.org/download.html).
     *   **Linux**: `sudo apt update && sudo apt install ffmpeg` (or use your distro's package manager).
-*   **fzf**: Required for the interactive anime selection in the CLI.
-    *   **Windows**: Download from the [fzf GitHub releases](https://github.com/junegunn/fzf/releases) and add to your PATH.
-    *   **macOS**: Install via your package manager or download from the [fzf releases](https://github.com/junegunn/fzf/releases).
-    *   **Linux**: `sudo apt update && sudo apt install fzf` (or use your distro's package manager).
 *   **Node.js**: Required for an internal dependency.
     *   [Download Node.js](https://nodejs.org/en/download/) or use a package manager.
 *   **Media Player** (for streaming): Required only if you want to use the `--play` feature.
@@ -122,9 +118,9 @@ pip install animepahe-dl
 installed or required).
 
 ```bash
-# Install system dependencies
+# Install system dependencies (anime selection is pure-Python; no fzf needed)
 pkg update && pkg upgrade
-pkg install python ffmpeg fzf nodejs
+pkg install python ffmpeg nodejs
 
 # Install animepahe-dl
 pip install animepahe-dl
