@@ -18,7 +18,7 @@ from ..utils import constants, config_manager
 from ..utils.logger import logger
 from ..api import AnimePaheAPI, Downloader
 from ..cli.commands import run_update_check
-from plyer import notification
+from ..utils.helper import notify
 
 
 class DaemonService:
@@ -201,16 +201,11 @@ class DaemonService:
         
         args = MockArgs(app_config)
         
-        # Send startup notification
-        try:
-            notification.notify(
-                title="Animepahe-dl Daemon",
-                message="Background service started - monitoring for new episodes",
-                app_name="Animepahe Downloader",
-                timeout=10
-            )
-        except Exception as e:
-            logger.warning(f"Failed to send startup notification: {e}")
+        # Send startup notification (best-effort)
+        notify(
+            "Animepahe-dl Daemon",
+            "Background service started - monitoring for new episodes",
+        )
         
         logger.info("Daemon started successfully")
         logger.info(f"Update interval: {constants.UPDATE_CHECK_INTERVAL_MINUTES} minutes")
@@ -229,31 +224,19 @@ class DaemonService:
                     
             except Exception as e:
                 logger.error(f"Error in daemon loop: {e}")
-                try:
-                    notification.notify(
-                        title="Animepahe-dl Daemon Error",
-                        message=f"Daemon encountered an error: {str(e)[:100]}",
-                        app_name="Animepahe Downloader",
-                        timeout=15
-                    )
-                except Exception:
-                    pass
-                
+                notify(
+                    "Animepahe-dl Daemon Error",
+                    f"Daemon encountered an error: {str(e)[:100]}",
+                    timeout=15,
+                )
+
                 # Wait before retrying
                 time.sleep(60)
         
         logger.info("Daemon shutting down...")
         
-        # Send shutdown notification
-        try:
-            notification.notify(
-                title="Animepahe-dl Daemon",
-                message="Background service stopped",
-                app_name="Animepahe Downloader",
-                timeout=10
-            )
-        except Exception:
-            pass
+        # Send shutdown notification (best-effort)
+        notify("Animepahe-dl Daemon", "Background service stopped")
     
     def _signal_handler(self, signum, frame):
         """Handle shutdown signals."""

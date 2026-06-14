@@ -478,7 +478,9 @@ class InteractiveMode:
         console.print("[bold]Current Settings:[/bold]")
 
         # Show current settings
+        from ..utils import constants
         settings_to_show = {
+            "AnimePahe Domain": self.config.get("base_url", constants.get_base_url()),
             "Download Directory": self.config.get("download_directory", "~/Videos"),
             "Default Quality": self.config.get("quality", "best"),
             "Default Audio": self.config.get("audio", "jpn"),
@@ -494,6 +496,18 @@ class InteractiveMode:
 
     def _modify_settings(self):
         """Modify application settings."""
+        from ..utils import constants, helper
+
+        # AnimePahe domain / mirror
+        new_base_url = questionary.text(
+            "AnimePahe domain / mirror (e.g. https://animepahe.ru):",
+            default=self.config.get("base_url", constants.get_base_url())
+        ).ask()
+        if new_base_url:
+            normalized = helper.normalize_base_url(new_base_url)
+            self.config["base_url"] = normalized
+            constants.set_base_url(normalized)
+
         # Download directory
         new_dir = questionary.text(
             "Download directory:",

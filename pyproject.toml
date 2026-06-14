@@ -27,6 +27,9 @@ classifiers = [
     "Topic :: Multimedia :: Video",
     "Topic :: Internet :: WWW/HTTP",
 ]
+# Core dependencies are kept terminal-only so the tool installs cleanly on
+# minimal environments such as Termux on Android. The desktop GUI (PyQt6) and
+# desktop notifications (plyer) are optional extras — see below.
 dependencies = [
     "beautifulsoup4>=4.14.3",
     "pyfzf>=0.3.0",
@@ -34,17 +37,28 @@ dependencies = [
     "tqdm>=4.66.0",
     "urllib3>=2.0.0,<2.5.0; python_version < '3.9'",
     "urllib3>=2.6.1; python_version >= '3.9'",
-    "PyQt6>=6.6.0",
     "platformdirs>=4.0.0",
     "loguru>=0.7.0",
-    "plyer>=2.1.0",
     "questionary>=2.0.0",
     "rich>=13.0.0",
     "typer>=0.9.0",
 ]
 
 [project.optional-dependencies]
+# Desktop graphical interface (`animepahe-dl --gui`). Not available on Termux.
+gui = [
+    "PyQt6>=6.6.0",
+    "plyer>=2.1.0",
+]
+# Desktop notifications only (usable alongside the terminal interface on desktop).
+notifications = [
+    "plyer>=2.1.0",
+]
 dev = [
+    # Include the GUI/notification extras so developer and CI environments can
+    # build and test the desktop interface.
+    "PyQt6>=6.6.0",
+    "plyer>=2.1.0",
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
     "pytest-asyncio>=0.21.0",

@@ -21,8 +21,8 @@ from pyfzf.pyfzf import FzfPrompt
 import questionary
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from plyer import notification
 from ..utils import constants, config_manager, helper
+from ..utils.helper import notify
 from ..api import AnimePaheAPI, Downloader
 from ..models import Anime, Episode
 from ..utils import logger
@@ -78,17 +78,29 @@ def check_dependencies():
     """
     Checks if required command-line tools (ffmpeg, fzf, node) are installed.
 
-    Exits the application if a dependency is not found.
+    Exits the application if a dependency is not found, printing an install
+    hint appropriate for the current platform (Termux-aware).
     """
-    if shutil.which("ffmpeg") is None:
-        logger.critical("ffmpeg is not installed or not in your PATH.")
-        sys.exit(1)
-    if shutil.which("fzf") is None:
-        logger.critical("fzf is not installed or not in your PATH.")
-        sys.exit(1)
-    if shutil.which("node") is None:
-        logger.critical("node is not installed or not in your PATH.")
-        sys.exit(1)
+    # Map each required executable to the package that provides it on Termux.
+    required = {"ffmpeg": "ffmpeg", "fzf": "fzf", "node": "nodejs"}
+    termux = helper.is_termux()
+
+    missing = [tool for tool in required if shutil.which(tool) is None]
+    if not missing:
+        return
+
+    for tool in missing:
+        logger.critical(f"{tool} is not installed or not in your PATH.")
+
+    if termux:
+        packages = " ".join(required[tool] for tool in missing)
+        logger.info(f"On Termux, install the missing dependencies with: pkg install {packages}")
+    else:
+        logger.info(
+            "Install the missing dependencies with your package manager "
+            "(e.g. 'sudo apt install ffmpeg fzf nodejs' on Debian/Ubuntu)."
+        )
+    sys.exit(1)
 
 
 def detect_media_player(preferred_player: str = "") -> Optional[str]:
@@ -432,16 +444,11 @@ def download_single_episode(
         logger.error(f"Failed to download all segments for Episode {ep_num}")
         raise Exception(f"Segment download failed for Episode {ep_num}")
 
-        # 6. Send a desktop notification upon completion
-        try:
-            notification.notify(
-                title="Animepahe-dl",
-                message=f"Finished downloading Ep {ep_num} of {anime_name}",
-                app_name="Animepahe Downloader",
-                timeout=10
-            )
-        except Exception as e:
-            logger.warning(f"Failed to send notification: {e}")
+        # 6. Send a desktop notification upon completion (best-effort)
+        notify(
+            "Animepahe-dl",
+            f"Finished downloading Ep {ep_num} of {anime_name}",
+        )
 
 
 def run_update_check(
@@ -495,32 +502,22 @@ def run_update_check(
 
     logger.info(f"Found {len(download_queue)} new episodes to download.")
 
-    # Send notification about new episodes found
-    try:
-        notification.notify(
-            title="Animepahe-dl - New Episodes",
-            message=f"Found {len(download_queue)} new episodes to download",
-            app_name="Animepahe Downloader",
-            timeout=10
-        )
-    except Exception as e:
-        logger.warning(f"Failed to send notification: {e}")
+    # Send notification about new episodes found (best-effort)
+    notify(
+        "Animepahe-dl - New Episodes",
+        f"Found {len(download_queue)} new episodes to download",
+    )
 
     for item in download_queue:
         download_single_episode(api, downloader, item, args, app_config)
 
     logger.success("Update check finished!")
 
-    # Send completion notification
-    try:
-        notification.notify(
-            title="Animepahe-dl - Update Complete",
-            message=f"Downloaded {len(download_queue)} new episodes",
-            app_name="Animepahe Downloader",
-            timeout=10
-        )
-    except Exception as e:
-        logger.warning(f"Failed to send notification: {e}")
+    # Send completion notification (best-effort)
+    notify(
+        "Animepahe-dl - Update Complete",
+        f"Downloaded {len(download_queue)} new episodes",
+    )
 
 
 def manage_my_list():
@@ -552,8 +549,6 @@ def main():
     # Setup signal handling for graceful shutdown
     signal_handler = setup_signal_handling()
 
-    # Ensure all external dependencies are met before starting
-    check_dependencies()
     # Load user configuration from file and apply base_url override early
     app_config = config_manager.load_config()
     if "base_url" in app_config and app_config["base_url"] != constants.get_base_url():
@@ -679,8 +674,34 @@ def main():
         default="",
         help="Specify media player to use (mpv, vlc, ffplay). Auto-detects if not specified.",
     )
+    parser.add_argument(
+        "--base-url",
+        type=str,
+        default="",
+        metavar="URL",
+        help="Override the AnimePahe domain/mirror for this run only (e.g. https://animepahe.ru).",
+    )
+    parser.add_argument(
+        "--set-base-url",
+        type=str,
+        default="",
+        metavar="URL",
+        help="Persist a new AnimePahe domain/mirror to your config and exit (e.g. animepahe.ru).",
+    )
+    parser.add_argument(
+        "--get-base-url",
+        action="store_true",
+        help="Print the AnimePahe domain/mirror currently in use and exit.",
+    )
 
     args = parser.parse_args()
+
+    # Apply a one-off base URL override for this run, if provided.
+    if args.base_url:
+        normalized = helper.normalize_base_url(args.base_url)
+        constants.set_base_url(normalized)
+        app_config["base_url"] = normalized
+        logger.info(f"Using AnimePahe domain for this run: {normalized}")
 
     # Set verbose logging if requested
     if args.verbose:
@@ -689,6 +710,20 @@ def main():
         logger.info("Verbose logging enabled")
 
     # Handle special commands first
+    if args.set_base_url:
+        normalized = helper.normalize_base_url(args.set_base_url)
+        app_config["base_url"] = normalized
+        config_manager.save_config(app_config)
+        constants.set_base_url(normalized)
+        logger.success(f"Saved AnimePahe domain: {normalized}")
+        logger.info(f"Config file: {config_manager.CONFIG_FILE_PATH}")
+        return
+
+    if args.get_base_url:
+        from ..utils.console import console
+        console.print(constants.get_base_url())
+        return
+
     if args.install_completions:
         from .completions import install_completions
         install_completions()
@@ -703,6 +738,10 @@ def main():
         from ..utils.console import console
         console.print("[dim]Download history feature coming soon![/dim]")
         return
+
+    # Ensure all external dependencies are met before doing any real work.
+    # (Config-only commands above don't need ffmpeg/fzf/node, so they run first.)
+    check_dependencies()
 
     # Force insecure SSL always
     api = AnimePaheAPI(verify_ssl=False)

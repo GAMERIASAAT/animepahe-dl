@@ -18,7 +18,7 @@ wheels = [
 
 [[package]]
 name = "animepahe-dl"
-version = "5.9.1"
+version = "5.10.1"
 source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -26,11 +26,8 @@ dependencies = [
     { name = "platformdirs", version = "4.3.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "platformdirs", version = "4.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
     { name = "platformdirs", version = "4.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "plyer" },
     { name = "pycryptodome" },
     { name = "pyfzf" },
-    { name = "pyqt6", version = "6.7.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
-    { name = "pyqt6", version = "6.10.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "questionary", version = "2.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "questionary", version = "2.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "rich" },
@@ -52,6 +49,9 @@ dev = [
     { name = "isort", version = "7.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "mypy", version = "1.14.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "mypy", version = "1.18.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
+    { name = "plyer" },
+    { name = "pyqt6", version = "6.7.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "pyqt6", version = "6.10.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "pytest", version = "8.3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "pytest", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
     { name = "pytest", version = "9.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
@@ -69,6 +69,14 @@ dev = [
     { name = "twine", version = "6.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "twine", version = "6.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
 ]
+gui = [
+    { name = "plyer" },
+    { name = "pyqt6", version = "6.7.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "pyqt6", version = "6.10.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
+]
+notifications = [
+    { name = "plyer" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -84,10 +92,13 @@ requires-dist = [
     { name = "loguru", specifier = ">=0.7.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.7.0" },
     { name = "platformdirs", specifier = ">=4.0.0" },
-    { name = "plyer", specifier = ">=2.1.0" },
+    { name = "plyer", marker = "extra == 'dev'", specifier = ">=2.1.0" },
+    { name = "plyer", marker = "extra == 'gui'", specifier = ">=2.1.0" },
+    { name = "plyer", marker = "extra == 'notifications'", specifier = ">=2.1.0" },
     { name = "pycryptodome", specifier = ">=3.19.0" },
     { name = "pyfzf", specifier = ">=0.3.0" },
-    { name = "pyqt6", specifier = ">=6.6.0" },
+    { name = "pyqt6", marker = "extra == 'dev'", specifier = ">=6.6.0" },
+    { name = "pyqt6", marker = "extra == 'gui'", specifier = ">=6.6.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.4.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
@@ -104,7 +115,7 @@ requires-dist = [
     { name = "urllib3", marker = "python_full_version < '3.9'", specifier = ">=2.0.0,<2.5.0" },
     { name = "urllib3", marker = "python_full_version >= '3.9'", specifier = ">=2.6.1" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["gui", "notifications", "dev"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pyinstaller", specifier = ">=6.19.0" }]

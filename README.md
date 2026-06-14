@@ -107,6 +107,43 @@ uv tool install animepahe-dl
 pip install animepahe-dl
 ```
 
+> The base install is **fully terminal-based** and does not pull in any GUI
+> libraries. If you want the desktop graphical interface (`--gui`), install the
+> optional extra instead:
+>
+> ```bash
+> pip install "animepahe-dl[gui]"
+> ```
+
+### 4. Install on Termux (Android)
+
+`animepahe-dl` runs entirely in the terminal, so it works on
+[Termux](https://termux.dev/) without any GUI dependencies (PyQt6 is **not**
+installed or required).
+
+```bash
+# Install system dependencies
+pkg update && pkg upgrade
+pkg install python ffmpeg fzf nodejs
+
+# Install animepahe-dl
+pip install animepahe-dl
+
+# (Optional) pick a working AnimePahe mirror/domain
+animepahe-dl --set-base-url animepahe.ru
+
+# Start the interactive terminal interface
+animepahe-dl
+```
+
+Downloads default to `~/Videos/Anime`. On Termux you may want to point them at
+your shared storage instead — run `termux-setup-storage` once, then set the
+download directory in the interactive **Configure settings** menu (or edit
+`config.json`) to something like `/storage/emulated/0/Anime`.
+
+> **Note:** The `--gui` flag is not supported on Termux, since Android has no
+> desktop windowing system. Use the interactive terminal interface instead.
+
 ## Usage
 
 The package can be run directly from your terminal.
@@ -143,7 +180,10 @@ animepahe-dl -n "Your Anime Name" -e 1 3 5
 | `--daemon` | | Run in daemon mode (background service for continuous updates). | |
 | `--daemon-action` | | Daemon management (start, stop, restart, status). | |
 | `--single` | | Disable multi-selection mode (select only one anime at a time). | |
-| `--gui` | | Launch the Graphical User Interface. | |
+| `--base-url` | | Override the AnimePahe domain/mirror for this run only (e.g. `https://animepahe.ru`). | |
+| `--set-base-url` | | Persist a new AnimePahe domain/mirror to your config and exit. | |
+| `--get-base-url` | | Print the AnimePahe domain/mirror currently in use and exit. | |
+| `--gui` | | Launch the Graphical User Interface (requires `pip install "animepahe-dl[gui]"`). | |
 
 **Examples:**
 
@@ -289,6 +329,29 @@ You can manually edit `config.json` to change defaults for quality, audio, threa
   "allow_insecure_ssl": true
 }
 ```
+
+### Changing the AnimePahe domain / mirror
+
+AnimePahe periodically changes its domain (e.g. `animepahe.si`, `animepahe.ru`,
+`animepahe.org`). You can switch to a working mirror in any of these ways:
+
+```bash
+# Persist a new domain to your config (scheme optional — https is assumed)
+animepahe-dl --set-base-url animepahe.ru
+
+# Use a different domain for a single run only, without saving it
+animepahe-dl --base-url https://animepahe.org -n "Naruto"
+
+# Show which domain is currently in use
+animepahe-dl --get-base-url
+```
+
+You can also change it interactively under **Configure settings → AnimePahe
+domain**, or by editing the `base_url` value in `config.json`.
+
+> The app also auto-follows AnimePahe's redirects on startup, so it will often
+> migrate to the current domain on its own. The options above let you pin or
+> override it when needed.
 
 ## 🛠️ For Developers
 

@@ -40,7 +40,21 @@ def main():
     if pre_args.gui:
         logger.info("Launching GUI...")
         # Dynamically import the GUI to avoid loading PyQt6 unless necessary.
-        from .gui import run_gui
+        # On terminal-only platforms (e.g. Termux) PyQt6 is not installed, so we
+        # fail gracefully with guidance instead of an unhandled ImportError.
+        try:
+            from .gui import run_gui
+        except ImportError as e:
+            logger.error(
+                "The GUI requires PyQt6, which is not installed in this environment. "
+                "Install the optional GUI dependencies with: pip install 'animepahe-dl[gui]'"
+            )
+            logger.error(
+                "The GUI is not supported on terminal-only platforms such as Termux. "
+                "Run without --gui to use the interactive terminal interface."
+            )
+            logger.debug(f"GUI import error: {e}")
+            sys.exit(1)
 
         # We reconstruct sys.argv to pass only the remaining arguments to the GUI.
         # This prevents PyQt from misinterpreting arguments meant for the CLI.
